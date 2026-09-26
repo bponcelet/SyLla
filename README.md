@@ -12,9 +12,15 @@ npm run dev        # http://localhost:5173
 npm test           # syllable engine tests
 npm run sample     # regenerates samples/le-petit-renard.epub (a small test book)
 npm run logo       # rebuilds src/assets/logo.svg and the Android/iOS icons + splash screens
+npm run default-book  # rebuilds public/books/les-malheurs-de-sophie.epub (the example book)
 ```
 
-Import `samples/le-petit-renard.epub` with "Ajouter un livre" to try the reader.
+On first launch the library contains *Les Malheurs de Sophie* (Comtesse de Ségur, 1858, public
+domain), bundled in `public/books/`. It is added once: if it is deleted, it does not come back.
+The text comes from Project Gutenberg (#15058) with all Project Gutenberg material removed, as its
+license allows, and is split into one file per chapter with our own cover.
+
+`samples/le-petit-renard.epub` is a very short test story you can import with "Ajouter un livre".
 
 ### Android / iOS
 

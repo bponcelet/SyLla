@@ -103,6 +103,12 @@ export async function openEpub(data: Blob | ArrayBuffer): Promise<Epub> {
   } catch {
     // A broken table of contents should not prevent reading.
   }
+  // Some books (e.g. quick Word → EPUB conversions) ship an almost empty table of contents:
+  // rebuild one from the chapter headings in the text.
+  if (countEntries(toc) < 3 && spine.length >= 3) {
+    const fromHeadings = await tocFromHeadings(zip, spine).catch(() => []);
+    if (fromHeadings.length > countEntries(toc)) toc = fromHeadings;
+  }
 
   return { metadata, spine, toc, coverPath, zip };
 }
@@ -141,6 +147,44 @@ function parseNcx(doc: Document, ncxPath: string): TocEntry[] {
   return navMap ? walk(navMap) : [];
 }
 
+const countEntries = (entries: TocEntry[]): number => entries.reduce((n, e) => n + 1 + countEntries(e.children), 0);
+
+const HEADINGS = 'h1, h2, h3, h4, h5, h6';
+/** Fragment given to headings without an id, so the table of contents can point at them. */
+export const headingId = (index: number) => `sylla-h-${index}`;
+
+function parseDocument(text: string): Document {
+  const doc = new DOMParser().parseFromString(text, 'application/xhtml+xml');
+  return doc.getElementsByTagName('parsererror').length ? new DOMParser().parseFromString(text, 'text/html') : doc;
+}
+
+/**
+ * Table of contents made of the book's chapter headings: the highest heading level used at least twice,
+ * plus, for files without such a heading, their most important heading (books converted from Word often
+ * have one chapter title at the wrong level).
+ */
+async function tocFromHeadings(zip: JSZip, spine: string[]): Promise<TocEntry[]> {
+  const perFile: { level: number; label: string; href: string }[][] = [];
+  for (const path of spine) {
+    const doc = parseDocument(await readText(zip, path));
+    const headings: { level: number; label: string; href: string }[] = [];
+    doc.querySelectorAll(HEADINGS).forEach((h, i) => {
+      const label = (h.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, 100);
+      if (label) headings.push({ level: Number(h.localName[1]), label, href: `${path}#${h.getAttribute('id') || headingId(i)}` });
+    });
+    perFile.push(headings);
+  }
+  const all = perFile.flat();
+  const main = [1, 2, 3, 4, 5, 6].find((level) => all.filter((h) => h.level === level).length >= 2);
+  if (!main) return [];
+  return perFile.flatMap((headings) => {
+    const atMain = headings.filter((h) => h.level === main);
+    if (atMain.length) return atMain;
+    const top = Math.min(...headings.map((h) => h.level));
+    return headings.filter((h) => h.level === top).slice(0, 1);
+  }).map(({ label, href }) => ({ label, href, children: [] }));
+}
+
 export async function readBlob(epub: Epub, path: string): Promise<Blob | undefined> {
   const file = epub.zip.file(path);
   if (!file) return undefined;
@@ -165,8 +209,7 @@ const DROP = new Set(['script', 'style', 'link', 'iframe', 'object', 'embed', 'f
 export async function loadChapter(epub: Epub, index: number): Promise<Chapter> {
   const path = epub.spine[index];
   const text = await readText(epub.zip, path);
-  let doc = new DOMParser().parseFromString(text, 'application/xhtml+xml');
-  if (doc.getElementsByTagName('parsererror').length) doc = new DOMParser().parseFromString(text, 'text/html');
+  const doc = parseDocument(text);
 
   const urls: string[] = [];
   const blobUrl = async (src: string) => {
@@ -178,6 +221,8 @@ export async function loadChapter(epub: Epub, index: number): Promise<Chapter> {
   };
 
   const body = doc.getElementsByTagName('body')[0] ?? doc.documentElement;
+  // Same ids as tocFromHeadings, for headings that have none.
+  doc.querySelectorAll(HEADINGS).forEach((h, i) => h.getAttribute('id') || h.setAttribute('id', headingId(i)));
   const all = Array.from(body.getElementsByTagName('*'));
   for (const el of all) {
     const name = el.localName.toLowerCase();

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import { deleteBook, importEpub, listBooks, type Book } from './db';
+import { addDefaultBooks, deleteBook, importEpub, listBooks, type Book } from './db';
 
 type Sort = 'recent' | 'title';
 
@@ -13,7 +13,8 @@ export function Library({ onOpen, onStats }: { onOpen: (id: string) => void; onS
 
   const refresh = useCallback(() => listBooks().then(setBooks), []);
   useEffect(() => {
-    refresh();
+    // First launch: add the example book, then show the library.
+    addDefaultBooks().finally(refresh);
   }, [refresh]);
 
   const sorted = useMemo(() => {

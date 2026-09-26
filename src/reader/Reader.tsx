@@ -340,18 +340,36 @@ export function Reader({ bookId, onClose }: { bookId: string; onClose: () => voi
     else if (x > 0.7) next();
   };
 
-  const chapterLabel = useMemo(() => {
-    if (!epub || spineIndex === undefined) return '';
-    const path = epub.spine[spineIndex];
-    let label = '';
+  /**
+   * Table-of-contents entry of the current position: the last entry at or before the current chapter
+   * file (a chapter can be split over several files, and a file can hold several chapters).
+   */
+  const currentEntry = useMemo(() => {
+    if (!epub || spineIndex === undefined) return undefined;
+    const flat: TocEntry[] = [];
     const walk = (entries: TocEntry[]) =>
       entries.forEach((t) => {
-        if (t.href.split('#')[0] === path && !label) label = t.label;
+        flat.push(t);
         walk(t.children);
       });
     walk(epub.toc);
-    return label;
-  }, [epub, spineIndex]);
+    let best: TocEntry | undefined;
+    let bestIndex = -1;
+    for (const entry of flat) {
+      const [path, id] = entry.href.split('#');
+      const index = epub.spine.indexOf(path);
+      if (index < 0 || index > spineIndex || index < bestIndex) continue;
+      // Within the current file, only entries whose heading is on this page or before.
+      if (index === spineIndex && id && ready) {
+        const el = contentRef.current?.querySelector(`[id="${CSS.escape(id)}"]`);
+        if (el && pageOf(el) > page) continue;
+      }
+      best = entry;
+      bestIndex = index;
+    }
+    return best;
+  }, [epub, spineIndex, page, ready, pageOf]);
+  const chapterLabel = currentEntry?.label ?? '';
 
   if (error) {
     return (
@@ -434,7 +452,7 @@ export function Reader({ bookId, onClose }: { bookId: string; onClose: () => voi
         <SettingsPanel onClose={() => setPanel(undefined)} helperAvailable={!!engine} language={book?.language} />
       )}
       {panel === 'toc' && epub && (
-        <TocPanel toc={epub.toc} current={epub.spine[spineIndex ?? 0]} onSelect={goTo} onClose={() => setPanel(undefined)} />
+        <TocPanel toc={epub.toc} current={currentEntry} onSelect={goTo} onClose={() => setPanel(undefined)} />
       )}
     </div>
   );

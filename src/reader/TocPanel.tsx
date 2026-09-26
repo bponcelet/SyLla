@@ -8,7 +8,7 @@ export function TocPanel({
   onClose,
 }: {
   toc: TocEntry[];
-  current: string;
+  current?: TocEntry;
   onSelect: (href: string) => void;
   onClose: () => void;
 }) {
@@ -17,7 +17,8 @@ export function TocPanel({
       {entries.map((e, i) => (
         <li key={`${e.href}-${i}`}>
           <button
-            className={e.href.split('#')[0] === current ? 'current' : undefined}
+            className={e === current ? 'current' : undefined}
+            aria-current={e === current ? 'location' : undefined}
             onClick={() => onSelect(e.href)}
             disabled={!e.href}
           >

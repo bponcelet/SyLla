@@ -136,6 +136,45 @@ export async function deleteBook(id: string) {
   await Promise.all([tx.objectStore('books').delete(id), tx.objectStore('files').delete(id), tx.done]);
 }
 
+/** Books bundled with the app (in public/books/), added to the library on first launch. */
+const DEFAULT_BOOKS = ['books/les-malheurs-de-sophie.epub'];
+const SEEDED_KEY = 'sylla-read.default-books-added';
+let seeding: Promise<boolean> | undefined;
+
+/**
+ * Add the bundled books once. Resolves to true when books were added. A book the user deletes
+ * later is not added back.
+ */
+export function addDefaultBooks(): Promise<boolean> {
+  seeding ??= (async () => {
+    try {
+      if (localStorage.getItem(SEEDED_KEY)) return false;
+    } catch {
+      // Without storage we cannot remember; only seed an empty library.
+      if ((await listBooks()).length) return false;
+    }
+    let added = false;
+    for (const path of DEFAULT_BOOKS) {
+      try {
+        const res = await fetch(path);
+        if (!res.ok) continue;
+        const name = path.split('/').pop()!;
+        await importEpub(new File([await res.blob()], name, { type: 'application/epub+zip' }));
+        added = true;
+      } catch {
+        // A missing bundled book must not break the library.
+      }
+    }
+    try {
+      localStorage.setItem(SEEDED_KEY, '1');
+    } catch {
+      // Ignore.
+    }
+    return added;
+  })();
+  return seeding;
+}
+
 /** Ask the browser not to evict the library when storage is low. */
 export function requestPersistentStorage() {
   navigator.storage?.persist?.().catch(() => {});

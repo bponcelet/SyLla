@@ -11,7 +11,8 @@
     "test:watch": "vitest",
     "cap:sync": "npm run build && cap sync",
     "sample": "node scripts/make-sample-epub.mjs",
-    "logo": "node scripts/make-logo.mjs && node scripts/make-native-assets.mjs && capacitor-assets generate --iconBackgroundColor \"#fbf5e9\" --iconBackgroundColorDark \"#16181c\" --splashBackgroundColor \"#fbf5e9\" --splashBackgroundColorDark \"#16181c\" --android --ios"
+    "logo": "node scripts/make-logo.mjs && node scripts/make-native-assets.mjs && capacitor-assets generate --iconBackgroundColor \"#fbf5e9\" --iconBackgroundColorDark \"#16181c\" --splashBackgroundColor \"#fbf5e9\" --splashBackgroundColorDark \"#16181c\" --android --ios",
+    "default-book": "node scripts/make-default-book.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.2",
