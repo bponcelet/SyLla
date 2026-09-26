@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+    <meta name="theme-color" content="#fbf5e9" />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="./icons/icon-192.webp" />
+    <title>SyllaLire</title>
+    <script>
+      // Apply the saved theme before the first paint, so the loading screen and the app never flash.
+      try {
+        document.documentElement.dataset.theme =
+          JSON.parse(localStorage.getItem('sylla-read.settings') || '{}').theme || 'sepia';
+      } catch {
+        document.documentElement.dataset.theme = 'sepia';
+      }
+    </script>
+    <style>
+      #splash {
+        position: fixed;
+        inset: 0;
+        z-index: 100;
+        display: grid;
+        place-items: center;
+        background: #fbf5e9;
+        transition: opacity 0.35s ease;
+      }
+      [data-theme='light'] #splash {
+        background: #ffffff;
+      }
+      [data-theme='dark'] #splash {
+        background: #16181c;
+      }
+      #splash.hide {
+        opacity: 0;
+        pointer-events: none;
+      }
+      #splash .logo {
+        width: min(45vw, 45vh, 220px);
+        height: auto;
+        animation: splash-pop 0.45s ease-out both;
+      }
+      /* The arcs draw themselves under each syllable, like a finger following the word. */
+      #splash .logo-arc {
+        stroke-dasharray: 1;
+        stroke-dashoffset: 1;
+        animation: splash-arc 0.4s ease-out forwards;
+      }
+      #splash .logo-a .logo-arc {
+        animation-delay: 0.3s;
+      }
+      #splash .logo-b .logo-arc {
+        animation-delay: 0.65s;
+      }
+      [data-theme='dark'] #splash .logo-ring {
+        fill: #22252b;
+      }
+      [data-theme='dark'] #splash .logo-a {
+        fill: #ff7b7b;
+        stroke: #ff7b7b;
+      }
+      [data-theme='dark'] #splash .logo-b {
+        fill: #7aa7ff;
+        stroke: #7aa7ff;
+      }
+      @keyframes splash-pop {
+        from {
+          opacity: 0;
+          transform: scale(0.85);
+        }
+      }
+      @keyframes splash-arc {
+        to {
+          stroke-dashoffset: 0;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #splash .logo,
+        #splash .logo-arc {
+          animation: none;
+          stroke-dashoffset: 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="splash" aria-hidden="true"><!--splash-logo--></div>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

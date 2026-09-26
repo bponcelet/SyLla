@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">SyllaLire</string>
+    <string name="title_activity_main">SyllaLire</string>
+    <string name="package_name">app.syllalire.reader</string>
+    <string name="custom_url_scheme">app.syllalire.reader</string>
+</resources>
