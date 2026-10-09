@@ -6,8 +6,10 @@ const config: CapacitorConfig = {
   webDir: 'dist',
   plugins: {
     SplashScreen: {
-      // Hidden from the web app (src/splash.ts) once the identical HTML loading screen is painted.
-      launchAutoHide: false,
+      // Normally hidden earlier by the web app (src/splash.ts) once the identical HTML loading screen
+      // is painted; the timeout only matters if the web app fails to load (never stuck on the logo).
+      launchAutoHide: true,
+      launchShowDuration: 3000,
       backgroundColor: '#fbf5e9',
       showSpinner: false,
     },

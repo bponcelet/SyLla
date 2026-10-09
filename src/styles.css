@@ -393,6 +393,11 @@ button:disabled {
 
 /* ---------- Syllable helper ---------- */
 
+/* A word is never split across lines. Without this, Android's WebView (Chrome 133) breaks lines
+   between syllables once the arcs are drawn: "feu / illage". */
+.sw {
+  white-space: nowrap;
+}
 .show-colors .sw.on .sa {
   color: var(--syl-a);
 }
