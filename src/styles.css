@@ -328,6 +328,35 @@ button:disabled {
   min-width: 0;
   text-align: center;
 }
+.reader-bottom .page-button {
+  padding: 6px 10px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.reader-bottom .page-button:hover {
+  background: var(--surface);
+}
+.reader-bottom .page-form {
+  white-space: nowrap;
+}
+.reader-bottom .page-form input {
+  width: 5em;
+  padding: 4px 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  text-align: center;
+}
+.reader-bottom .page-form input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
 
 .viewport {
   position: relative;

@@ -6,7 +6,8 @@ export const GAP = 64;
 
 /** Lay `el` out in page-wide columns and return the page count and the distance between pages. */
 export function paginate(el: HTMLElement) {
-  const width = el.clientWidth;
+  // Fractional width: `clientWidth` is rounded, and the error would add up page after page.
+  const width = el.getBoundingClientRect().width;
   el.style.columnWidth = `${width}px`;
   el.style.columnGap = `${GAP}px`;
   const stride = width + GAP;

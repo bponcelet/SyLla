@@ -13,6 +13,7 @@ type Target =
   | { kind: 'start' }
   | { kind: 'end' }
   | { kind: 'fraction'; value: number }
+  | { kind: 'page'; value: number }
   | { kind: 'fragment'; id: string }
   | { kind: 'anchor'; el: Element };
 
@@ -28,6 +29,8 @@ export function Reader({ bookId, onClose }: { bookId: string; onClose: () => voi
   const [layoutId, setLayoutId] = useState(0);
   const [viewportSize, setViewportSize] = useState('');
   const [panel, setPanel] = useState<'settings' | 'toc'>();
+  // Page numbers frozen while the "go to page" field is open (the soft keyboard may resize the viewport).
+  const [pageJump, setPageJump] = useState<{ current: number; total: number; counts: number[] }>();
 
   const viewportRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -156,6 +159,7 @@ export function Reader({ bookId, onClose }: { bookId: string; onClose: () => voi
       let p = 0;
       if (target.kind === 'end') p = count - 1;
       else if (target.kind === 'fraction') p = Math.round(target.value * (count - 1));
+      else if (target.kind === 'page') p = target.value;
       else if (target.kind === 'fragment') {
         const el = content.querySelector(`[id="${CSS.escape(target.id)}"]`);
         if (el) p = pageOf(el);
@@ -234,7 +238,7 @@ export function Reader({ bookId, onClose }: { bookId: string; onClose: () => voi
     // The visible chapter's live count wins over the background measurement.
     const counts = chapterCounts.map((c, i) => (i === spineIndex ? pageCount : c));
     const before = counts.slice(0, spineIndex).reduce((a, b) => a + b, 0);
-    return { current: before + page + 1, total: counts.reduce((a, b) => a + b, 0) };
+    return { current: before + page + 1, total: counts.reduce((a, b) => a + b, 0), counts };
   }, [chapterCounts, spineIndex, page, pageCount, epub]);
 
   // Move to the current page, then remember the first visible word and save progress.
@@ -299,10 +303,30 @@ export function Reader({ bookId, onClose }: { bookId: string; onClose: () => voi
     [epub, layout],
   );
 
+  /** Jump to page `n` (1-based) of the whole book, given the page count of every chapter. */
+  const goToPage = useCallback(
+    (n: number, counts: number[]) => {
+      const total = counts.reduce((a, b) => a + b, 0);
+      let rest = Math.min(total, Math.max(1, n)) - 1;
+      let index = 0;
+      while (index < counts.length - 1 && rest >= counts[index]) {
+        rest -= counts[index];
+        index++;
+      }
+      const target: Target = { kind: 'page', value: rest };
+      if (index === nav.current.spineIndex) layout(target);
+      else {
+        pendingTarget.current = target;
+        setSpineIndex(index);
+      }
+    },
+    [layout],
+  );
+
   // Keyboard (web / tablets with keyboards).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (panel) return;
+      if (panel || pageJump) return;
       if (['ArrowRight', 'PageDown', ' '].includes(e.key)) next();
       else if (['ArrowLeft', 'PageUp'].includes(e.key)) prev();
       else return;
@@ -310,7 +334,7 @@ export function Reader({ bookId, onClose }: { bookId: string; onClose: () => voi
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [next, prev, panel]);
+  }, [next, prev, panel, pageJump]);
 
   // Taps and swipes.
   const down = useRef<{ x: number; y: number } | undefined>(undefined);
@@ -429,7 +453,23 @@ export function Reader({ bookId, onClose }: { bookId: string; onClose: () => voi
           <Icon d="M15 5l-7 7 7 7" />
         </button>
         <div className="where">
-          <span>{bookPages ? `Page ${bookPages.current} / ${bookPages.total}` : 'Page …'}</span>
+          {pageJump ? (
+            <PageInput
+              current={pageJump.current}
+              total={pageJump.total}
+              onSubmit={(n) => {
+                setPageJump(undefined);
+                goToPage(n, pageJump.counts);
+              }}
+              onCancel={() => setPageJump(undefined)}
+            />
+          ) : !bookPages ? (
+            <span>Page …</span>
+          ) : (
+            <button className="page-button" onClick={() => setPageJump(bookPages)} aria-label="Aller à la page…">
+              Page {bookPages.current} / {bookPages.total}
+            </button>
+          )}
         </div>
         <button className="icon-button" onClick={next} disabled={atEnd} aria-label="Page suivante">
           <Icon d="M9 5l7 7-7 7" />
@@ -458,7 +498,49 @@ export function Reader({ bookId, onClose }: { bookId: string; onClose: () => voi
   );
 }
 
-export const Icon = ({ d }: { d: string }) => (
+function PageInput({
+  current,
+  total,
+  onSubmit,
+  onCancel,
+}: {
+  current: number;
+  total: number;
+  onSubmit: (page: number) => void;
+  onCancel: () => void;
+}) {
+  const [value, setValue] = useState(String(current));
+  return (
+    <form
+      className="page-form"
+      onSubmit={(e) => {
+        e.preventDefault();
+        const n = parseInt(value, 10);
+        if (Number.isNaN(n)) onCancel();
+        else onSubmit(n);
+      }}
+    >
+      Page{' '}
+      <input
+        type="number"
+        inputMode="numeric"
+        enterKeyHint="go"
+        min={1}
+        max={total}
+        value={value}
+        autoFocus
+        onFocus={(e) => e.target.select()}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={(e) => e.key === 'Escape' && onCancel()}
+        onBlur={onCancel}
+        aria-label={`Numéro de page, de 1 à ${total}`}
+      />{' '}
+      / {total}
+    </form>
+  );
+}
+
+export const Icon =({ d }: { d: string }) => (
   <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
     <path d={d} fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
